@@ -88,6 +88,10 @@ struct PrimalDualOutput
   primal_solution::Vector{Float64}
   dual_solution::Vector{Float64}
   iteration_stats::DataFrames.DataFrame
+  time::Float64
+  iteration::Int64
+  primal_size::Int64
+  dual_size::Int64
   status::SolutionStatus
 end
 
@@ -96,12 +100,10 @@ Given primal-dual solution pair (x,y)
 compute dual_residual = c - A'*y
 """
 function compute_dual_residual(
-    dual_iterate::Vector{Float64},
-    problem::LinearProgrammingProblem,
+  dual_iterate::Vector{Float64},
+  problem::LinearProgrammingProblem,
 )
-    objective_vector, constraint_matrix, right_hand_side = problem.objective_vector, problem.constraint_matrix, problem.right_hand_side
-    dual_residual = objective_vector-constraint_matrix'*dual_iterate
-    return dual_residual
+  @inbounds return problem.objective_vector - problem.constraint_matrix' * dual_iterate
 end
 
 """
@@ -109,12 +111,10 @@ Given primal-dual solution pair (x,y)
 compute primal_residual = b - A*x
 """
 function compute_primal_residual(
-    primal_iterate::Vector{Float64},
-    problem::LinearProgrammingProblem,
+  primal_iterate::Vector{Float64},
+  problem::LinearProgrammingProblem,
 )
-    objective_vector, constraint_matrix, right_hand_side = problem.objective_vector, problem.constraint_matrix, problem.right_hand_side
-    primal_residual = right_hand_side-constraint_matrix*primal_iterate
-    return primal_residual
+  @inbounds return problem.right_hand_side .- problem.constraint_matrix * primal_iterate
 end
 
 function projection_primal(
@@ -142,31 +142,31 @@ function projection_dual(
 end
 
 function take_pdhg_step(
-    problem::LinearProgrammingProblem,
-    current_primal_solution::Vector{Float64},
-    current_dual_solution::Vector{Float64},
-    current_primal_residual::Vector{Float64},
-    current_dual_residual::Vector{Float64},
-    primal_step_size::Union{Float64, Vector{Float64}},
-    dual_step_size::Union{Float64, Vector{Float64}},)
-
-        next_primal = projection_primal(current_primal_solution - primal_step_size.*current_dual_residual, problem)
-        next_primal_residual = compute_primal_residual(next_primal,problem)
-        next_dual = projection_dual(current_dual_solution - dual_step_size.*(current_primal_residual-2*next_primal_residual), problem)
-        next_dual_residual = compute_dual_residual(next_dual,problem)
-    return next_primal, next_dual, next_primal_residual, next_dual_residual
+  problem::LinearProgrammingProblem,
+  current_primal_solution::Vector{Float64},
+  current_dual_solution::Vector{Float64},
+  current_primal_residual::Vector{Float64},
+  current_dual_residual::Vector{Float64},
+  primal_step_size::Union{Float64, Vector{Float64}},
+  dual_step_size::Union{Float64, Vector{Float64}}
+)
+  @inbounds next_primal = projection_primal(current_primal_solution .- primal_step_size .* current_dual_residual, problem)
+  @inbounds next_primal_residual = compute_primal_residual(next_primal, problem)
+  @inbounds next_dual = projection_dual(current_dual_solution .- dual_step_size .* (current_primal_residual .- 2 .* next_primal_residual), problem)
+  @inbounds next_dual_residual = compute_dual_residual(next_dual, problem)
+  return next_primal, next_dual, next_primal_residual, next_dual_residual
 end
 
 function step_size_update!(
-    primal_step_size::Vector{Float64},
-    dual_step_size::Vector{Float64},
-    learning_rate::Float64,
-    primal_step_size_v::Vector{Float64},
-    dual_step_size_v::Vector{Float64},
-    current_primal_residual::Vector{Float64},
-    current_dual_residual::Vector{Float64},
-    next_primal_residual::Vector{Float64},
-    next_dual_residual::Vector{Float64},
+  primal_step_size::Vector{Float64},
+  dual_step_size::Vector{Float64},
+  learning_rate::Float64,
+  primal_step_size_v::Vector{Float64},
+  dual_step_size_v::Vector{Float64},
+  current_primal_residual::Vector{Float64},
+  current_dual_residual::Vector{Float64},
+  next_primal_residual::Vector{Float64},
+  next_dual_residual::Vector{Float64},
 )
     primal_step_size_gradient = - current_dual_residual .* next_dual_residual
     dual_step_size_gradient = - next_primal_residual .* (current_primal_residual-2*next_primal_residual)
@@ -287,6 +287,11 @@ function optimize(
             println("Found optimal solution after $iteration iterations")
           end
           terminate = true
+        elseif kkt_error > 1e10
+          if params.verbosity
+            println("KKT error exploded after $iteration iterations")
+          end
+          terminate = true
         end
       end
       if store_stats
@@ -302,10 +307,15 @@ function optimize(
             current_primal_solution ./ scaled_problem.variable_rescaling
         original_dual_solution::Vector{Float64} =
             current_dual_solution ./ scaled_problem.constraint_rescaling
+        
         optimize_output = PrimalDualOutput(
           original_primal_solution, 
           original_dual_solution,
           stats,
+          time() - start_time,
+          iteration,
+          primal_size,
+          dual_size,
           iteration >= iteration_limit ? STATUS_ITERATION_LIMIT : STATUS_OPTIMAL,
         )
         return optimize_output

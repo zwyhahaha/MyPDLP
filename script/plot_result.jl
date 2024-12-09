@@ -21,29 +21,24 @@ function parse_command_line()
     "--directory_for_solver_output"
     help = "The directory for solver output."
     arg_type = String
-    required = true
+    # required = true
+    default = "./output/solver_output/MIPLIB"
 
     "--figure_directory"
     help = "The directory for figures."
     arg_type = String
-    required = true
+    # required = true
+    default = "./output/figure/MIPLIB"
 
-
-    "--problem_name"
-    help = "The instance to plot."
-    arg_type = String
-    default = "neos5"
   end
 
   return ArgParse.parse_args(arg_parse)
 end
 
-function main()
-  parsed_args = parse_command_line()
-  directory_for_solver_output = parsed_args["directory_for_solver_output"]
-  figure_directory = parsed_args["figure_directory"]
-  problem_name = parsed_args["problem_name"]
-  
+function plot(directory_for_solver_output,
+              figure_directory,
+              problem_name)
+
   kkt_plt = Plots.plot()
   
   for file in readdir(directory_for_solver_output)
@@ -73,7 +68,57 @@ function main()
     end
   end
   
-  Plots.savefig(kkt_plt, joinpath(figure_directory, "$(problem_name).png"), dpi=300)
+  if !isdir(figure_directory)
+    mkpath(figure_directory)
+  end
+
+  Plots.savefig(kkt_plt, joinpath(figure_directory, "$(problem_name).png"))
 end
 
-main()
+function write_csv(directory_for_solver_output,
+                   table_directory,
+                   dataset)
+  csv_file = joinpath(table_directory, "$(dataset).csv")
+
+  open(csv_file, "w") do io
+    println(io, "name, lr, n ,m, iterations, time, kkt_error, status")
+
+    for file in readdir(directory_for_solver_output)
+
+      if endswith(file, ".jld2")
+
+        problem_name = replace(basename(file), ".jld2" => "")
+        name, lr = split(problem_name, "_")
+        solver_output = JLD2.load(joinpath(directory_for_solver_output, file))
+        solver_output = solver_output["solver_output"]
+        
+        kkt_error = solver_output.iteration_stats[:,"kkt_error"]
+        last_kkt = kkt_error[end]
+        n = solver_output.primal_size
+        m = solver_output.dual_size
+        iteration = solver_output.iteration
+        time = solver_output.time
+        status = solver_output.status
+        
+        println(io, "$(name),$(lr),$(n),$(m),$(iteration),$(time),$(last_kkt),$(status)")
+      end
+    end
+
+  end
+end
+
+function main()
+  parsed_args = parse_command_line()
+  directory_for_solver_output = parsed_args["directory_for_solver_output"]
+  figure_directory = parsed_args["figure_directory"]
+
+  for file in readdir(directory_for_solver_output)
+    if endswith(file, ".jld2")
+      problem_name = replace(basename(file), ".jld2" => "")
+      name, lr = split(problem_name, "_")
+      plot(directory_for_solver_output, figure_directory, name)
+    end
+  end
+end
+
+# main()
