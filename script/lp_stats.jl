@@ -15,13 +15,13 @@ function parse_command_line()
       "--dataset"
       help = "The LP dataset."
       arg_type = String
-      default = "netlib"
+      default = "MIPLIB"
   
       "--output_directory"
       help = "The directory for output files."
       arg_type = String
       # required = true
-      default = "./assets"
+      default = "./output/stats"
   
     end
   
@@ -78,15 +78,15 @@ function main()
             try 
                 lp = qps_reader_to_standard_form(instance_path)
                 m, n = size(lp.constraint_matrix)
-                if n > 5000 && m > 5000
-                    continue
-                end
+                # if n > 5000 && m > 5000
+                #     continue
+                # end
                 nnz = length(lp.constraint_matrix.nzval)
                 density = nnz / (m * n)
-                norm_before = norm(lp.constraint_matrix)
+                norm_before = opnorm(Matrix(lp.constraint_matrix))
                 scaled_problem = rescale_problem(10,true,4,lp)
                 scaled_lp = scaled_problem.scaled_lp
-                norm_after = norm(scaled_lp.constraint_matrix)
+                norm_after = opnorm(Matrix(scaled_lp.constraint_matrix))
                 println(io, "$(problem_name),$(n),$(m),$(nnz),$(density),$(norm_before),$(norm_after)")
             catch e
                 println("Error in read $(i), $(problem_name)", e)

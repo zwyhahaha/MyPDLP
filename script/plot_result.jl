@@ -22,13 +22,18 @@ function parse_command_line()
     help = "The directory for solver output."
     arg_type = String
     # required = true
-    default = "./output/solver_output/MIPLIB"
+    default = "./output/solver_output"
 
     "--figure_directory"
     help = "The directory for figures."
     arg_type = String
     # required = true
-    default = "./output/figure/MIPLIB"
+    default = "./output/figure"
+
+    "--dataset"
+    help = "The LP dataset."
+    arg_type = String
+    default = "MIPLIB"
 
   end
 
@@ -47,6 +52,9 @@ function plot(directory_for_solver_output,
       solver_output = solver_output["solver_output"]
       
       kkt_error = solver_output.iteration_stats[:,"kkt_error"]
+
+      lr = split(replace(basename(file), ".jld2" => ""), "_")[end]
+      label = "lr = $(lr)"
       
       Plots.plot!(
         kkt_plt,
@@ -58,7 +66,7 @@ function plot(directory_for_solver_output,
         xguidefontsize=14,
         yaxis=:log,
         yguidefontsize=14,
-        label=replace(basename(file), ".jld2" => ""),
+        label="$(label)",
         legend=:topright,
         title="$(problem_name)",
         titlefontsize=16,
@@ -111,6 +119,10 @@ function main()
   parsed_args = parse_command_line()
   directory_for_solver_output = parsed_args["directory_for_solver_output"]
   figure_directory = parsed_args["figure_directory"]
+  dataset = parsed_args["dataset"]
+
+  directory_for_solver_output = joinpath(directory_for_solver_output, dataset)
+  figure_directory = joinpath(figure_directory, dataset)
 
   for file in readdir(directory_for_solver_output)
     if endswith(file, ".jld2")

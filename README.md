@@ -22,6 +22,10 @@ $ julia --project -e 'import Pkg; Pkg.instantiate()'
 
 ```shell
 $ julia --project script/run_problem.jl [directory_for_problem_instances] [results_directory] [problem_name] [KKT_tolerance] [iteration_limit]
+
+$ julia --project script/run_problem.jl --problem_folder /Users/apple/Documents/PDLP/code/dataset --dataset netlib --kkt_tolerance 1e-4 --iteration_limit 50000 --problem_name scsd6 --online_scaling --learning_rate 0.001
+
+$ julia --project script/run_batch.jl --problem_folder /Users/apple/Documents/PDLP/code/dataset --dataset netlib --kkt_tolerance 1e-4 --iteration_limit 50000
 ```
 
 ## Plotting results
@@ -33,7 +37,7 @@ $ julia --project script/plot_result.jl [directory_for_solver_output] [figure_di
 ## Example
 
 ```shell
-$ julia --project script/run_problem.jl --problem_folder=./data --output_directory=./output/solver_output --problem_name=neos5 --kkt_tolerance=1e-6 --iteration_limit=20000
+$ julia --project script/run_problem.jl --problem_name=neos5 --online_scaling --learning_rate 0.1
 $ julia --project script/plot_result.jl --directory_for_solver_output=./output/solver_output --figure_directory=./output/figure --problem_name=neos5
 ```
 

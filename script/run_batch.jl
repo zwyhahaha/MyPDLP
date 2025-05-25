@@ -55,7 +55,7 @@ function main()
     # easy_instances = ["neos5","mad","acc-tight2","enlight_hard"]
     # mid_instances = ["b-ball","graphdraw-domain","gsvm2rl3","gsvm2rl5"]
     # hard_instances = ["beasleyC1"]
-    easy_instances = ["sc50a"]
+    # easy_instances = ["sc50a"]
 
     output_directory = joinpath(output_directory, dataset)
     problem_folder = joinpath(problem_folder, dataset)
@@ -69,7 +69,7 @@ function main()
 
     len = length(all_instances)
 
-    for i in 96:len
+    for i in 1:len
         problem_name = all_instances[i]
         instance_path = joinpath(problem_folder, "$(problem_name).mps.gz")
         println("Solving $(i), $(problem_name)")
@@ -82,7 +82,7 @@ function main()
               continue
           end
           
-          for learning_rate in [0.0,0.001,0.01]
+          for learning_rate in [0.0, 0.01]
               solver_output = solve(lp, iteration_limit, kkt_tolerance, zeros(n), zeros(m), true, learning_rate)
               JLD2.jldsave(joinpath(output_directory, "$(problem_name)_$(string(learning_rate)).jld2"); solver_output)
           end
