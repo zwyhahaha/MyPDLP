@@ -1,4 +1,5 @@
 include("../src/SimplePDLP.jl")
+include("plot_result.jl")
 using ArgParse
 
 # @assert length(ARGS) == 4
@@ -29,6 +30,11 @@ function parse_command_line()
     # required = true
     default = "./output/solver_output"
 
+    "--dataset"
+    help = "The LP dataset."
+    arg_type = String
+    default = "MIPLIB"
+
     "--problem_name"
     help = "The instance to solve."
     arg_type = String
@@ -51,7 +57,7 @@ function parse_command_line()
     "--learning_rate"
     help = "The learning rate for the online scaling"
     arg_type = Float64
-    default = 0.1
+    default = 0.0
 
   end
 
@@ -62,11 +68,15 @@ function main()
     parsed_args = parse_command_line()
     problem_folder = parsed_args["problem_folder"]
     output_directory = parsed_args["output_directory"]
+    dataset = parsed_args["dataset"]
     problem_name = parsed_args["problem_name"]
     kkt_tolerance = parsed_args["kkt_tolerance"]
     iteration_limit = parsed_args["iteration_limit"]
     online_scaling = parsed_args["online_scaling"]
     learning_rate = parsed_args["learning_rate"]
+
+    output_directory = joinpath(output_directory, dataset)
+    problem_folder = joinpath(problem_folder, dataset)
 
     instance_path = joinpath("$(problem_folder)", "$(problem_name).mps.gz")
     lp = qps_reader_to_standard_form(instance_path)
@@ -74,6 +84,8 @@ function main()
     
     solver_output = solve(lp, iteration_limit, kkt_tolerance, zeros(n), zeros(m), online_scaling, learning_rate)
     JLD2.jldsave(joinpath("$(output_directory)","$(problem_name)_$(string(learning_rate)).jld2"); solver_output)
+
+    plot(output_directory, "./output/figure/$(dataset)", problem_name)
 end
 
 main()

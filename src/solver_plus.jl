@@ -168,8 +168,8 @@ function step_size_update!(
   next_primal_residual::Vector{Float64},
   next_dual_residual::Vector{Float64},
 )
-    primal_step_size_gradient = - current_dual_residual .* next_dual_residual
-    dual_step_size_gradient = - next_primal_residual .* (current_primal_residual-2*next_primal_residual)
+    primal_step_size_gradient = - next_dual_residual .* current_dual_residual / (norm(current_dual_residual)^2 + eps())
+    dual_step_size_gradient = - next_primal_residual .* (current_primal_residual-2*next_primal_residual)/ (norm(current_primal_residual)^2 + eps())
 
     primal_step_size_v .+= primal_step_size_gradient.^2
     dual_step_size_v .+= dual_step_size_gradient.^2
